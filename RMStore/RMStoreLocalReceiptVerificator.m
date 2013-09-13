@@ -20,7 +20,13 @@
 
 #import "RMStoreLocalReceiptVerificator.h"
 
-#define RMStoreLog(...) if (DEBUG) { NSLog(@"RMStore: %@", [NSString stringWithFormat:__VA_ARGS__]); }
+#ifdef DEBUG
+#define RMStoreLog(...) NSLog(@"RMStore: %@", [NSString stringWithFormat:__VA_ARGS__]);
+#else
+#define RMStoreLog(...)
+#endif
+
+static NSString *RMErroDomainStoreLocalReceiptVerificator = @"RMStoreLocalReceiptVerificator";
 
 @interface NSData(rm_base64)
 
@@ -112,6 +118,15 @@ static const short _base64DecodingTable[256] = {
                            failure:(void (^)(NSError *error))failureBlock
 {    
     NSString *receipt = [transaction.transactionReceipt rm_stringByBase64Encoding];
+    if (receipt == nil)
+    {
+        if (failureBlock != nil)
+        {
+            NSError *error = [NSError errorWithDomain:RMErroDomainStoreLocalReceiptVerificator code:0 userInfo:nil];
+            failureBlock(error);
+        }
+        return;
+    }
     static NSString *receiptDataKey = @"receipt-data";
     NSDictionary *jsonReceipt = @{receiptDataKey : receipt};
     
@@ -192,8 +207,7 @@ static const short _base64DecodingTable[256] = {
             else
             {
                 RMStoreLog(@"Verification Failed With Code %d", statusCode);
-                static NSString *errorDomain = @"RMStoreLocalReceiptVerificator";
-                NSError *serverError = [NSError errorWithDomain:errorDomain code:statusCode userInfo:nil];
+                NSError *serverError = [NSError errorWithDomain:RMErroDomainStoreLocalReceiptVerificator code:statusCode userInfo:nil];
                 if (failureBlock != nil)
                 {
                     failureBlock(serverError);
